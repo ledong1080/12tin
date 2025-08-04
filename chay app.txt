@@ -1,0 +1,337 @@
+Để triển khai ứng dụng lên **VPS Ubuntu**, bạn có thể làm theo các bước sau. Dưới đây là các bước chi tiết để triển khai ứng dụng Node.js mà bạn vừa giải nén từ file **.zip**.
+
+### 1. **Cài đặt môi trường trên VPS**
+
+Trước khi triển khai ứng dụng, bạn cần cài đặt một số phần mềm cơ bản trên VPS Ubuntu của mình:
+
+#### Cài đặt **Node.js** và **npm** (nếu chưa cài đặt)
+
+Nếu chưa cài đặt Node.js, bạn có thể làm theo các bước sau:
+
+1. Cài đặt **NVM** (Node Version Manager) để quản lý các phiên bản Node.js:
+
+   ```bash
+   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
+   ```
+
+2. Sau khi cài đặt xong, tải lại cấu hình của shell:
+
+   ```bash
+   source ~/.bashrc
+   ```
+
+3. Cài đặt Node.js (phiên bản mới nhất):
+
+   ```bash
+   nvm install node
+   ```
+
+4. Kiểm tra lại:
+
+   ```bash
+   node -v
+   npm -v
+   ```
+
+#### Cài đặt **Git** (nếu chưa cài đặt)
+
+Git sẽ giúp bạn tải ứng dụng từ repository nếu cần:
+
+```bash
+sudo apt update
+sudo apt install git
+```
+
+#### Cài đặt **Nginx** (để làm reverse proxy)
+
+Nếu bạn muốn dùng **Nginx** làm reverse proxy cho ứng dụng của mình (giúp ứng dụng có thể chạy trên cổng 80), hãy cài đặt Nginx:
+
+```bash
+sudo apt install nginx
+```
+
+#### Cài đặt **PM2** (quản lý ứng dụng Node.js)
+
+**PM2** sẽ giúp bạn chạy ứng dụng Node.js dưới dạng dịch vụ:
+
+```bash
+sudo npm install pm2@latest -g
+```
+
+### 2. **Đưa mã nguồn ứng dụng lên VPS**
+
+Có nhiều cách để đưa mã nguồn lên VPS, ví dụ bằng **SFTP**, **Git**, hoặc **Sao chép trực tiếp**.
+
+#### **Sử dụng Git**:
+
+1. Cài đặt Git trên VPS (nếu chưa cài):
+
+   ```bash
+   sudo apt install git
+   ```
+
+2. Clone repository của bạn từ GitHub hoặc GitLab:
+
+   ```bash
+   git clone https://github.com/your-repository/your-app.git
+   cd your-app
+   ```
+
+#### **Sử dụng SFTP hoặc SCP**:
+
+Nếu bạn có mã nguồn trong máy tính cá nhân, bạn có thể dùng SFTP hoặc SCP để tải lên VPS.
+
+Ví dụ sử dụng **SCP**:
+
+```bash
+scp -r /path/to/your-app user@your-vps-ip:/path/to/destination
+```
+
+### 3. **Cài đặt các phụ thuộc**
+
+Sau khi mã nguồn đã có trên VPS, bạn cần cài đặt các phụ thuộc của ứng dụng.
+
+1. Truy cập vào thư mục ứng dụng:
+
+   ```bash
+   cd /path/to/your-app
+   ```
+
+2. Cài đặt các phụ thuộc:
+
+   ```bash
+   npm install
+   ```
+
+### 4. **Cấu hình .env.local**
+
+Đảm bảo bạn đã thiết lập đúng **GEMINI\_API\_KEY** trong file `.env.local` (hoặc tạo mới nếu không có).
+
+Ví dụ:
+
+```bash
+GEMINI_API_KEY=your-gemini-api-key-here
+```
+
+### 5. **Chạy ứng dụng với PM2**
+
+Dùng PM2 để chạy ứng dụng Node.js và đảm bảo ứng dụng sẽ tự động khởi động lại khi VPS được khởi động lại.
+
+1. Chạy ứng dụng:
+
+   ```bash
+   pm2 start npm --name "your-app" -- run dev
+   ```
+
+2. Để ứng dụng chạy vĩnh viễn và tự động khởi động lại khi VPS khởi động lại:
+
+   ```bash
+   pm2 startup
+   pm2 save
+   ```
+
+### 6. **Cấu hình Nginx (Reverse Proxy)**
+
+Nếu bạn muốn chạy ứng dụng trên cổng 80 (thông qua HTTP), bạn cần cấu hình **Nginx** làm reverse proxy.
+
+1. Tạo một file cấu hình mới cho ứng dụng của bạn trong **Nginx**:
+
+   ```bash
+   sudo nano /etc/nginx/sites-available/your-app
+   ```
+
+2. Thêm cấu hình sau vào file:
+
+   ```nginx
+   server {
+       listen 80;
+       server_name your-domain.com;  # Hoặc IP của VPS
+
+       location / {
+           proxy_pass http://localhost:3000;  # Cổng của ứng dụng Node.js
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+       }
+   }
+   ```
+
+3. Tạo symbolic link để cấu hình được kích hoạt:
+
+   ```bash
+   sudo ln -s /etc/nginx/sites-available/your-app /etc/nginx/sites-enabled/
+   ```
+
+4. Kiểm tra và khởi động lại Nginx:
+
+   ```bash
+   sudo nginx -t
+   sudo systemctl restart nginx
+   ```
+
+### 7. **Truy cập ứng dụng từ trình duyệt**
+
+Sau khi cấu hình xong, bạn có thể truy cập ứng dụng từ trình duyệt bằng cách nhập địa chỉ **IP VPS** hoặc **Tên miền** của bạn (nếu có).
+
+Ví dụ:
+
+```
+http://your-vps-ip
+```
+
+Hoặc nếu bạn có **tên miền**:
+
+```
+http://your-domain.com
+```
+
+---
+
+Nếu bạn gặp khó khăn ở bước nào, hoặc cần hỗ trợ thêm về các phần khác (ví dụ: bảo mật, cấu hình SSL, v.v.), hãy cho tôi biết!
+===
+Có, bạn có thể triển khai **2 ứng dụng khác nhau** trên **1 VPS** mà không gặp vấn đề gì, miễn là bạn cấu hình cổng và tài nguyên phù hợp. Dưới đây là cách bạn có thể làm điều này:
+
+### Cách triển khai nhiều ứng dụng trên một VPS
+
+#### 1. **Cài đặt và cấu hình mỗi ứng dụng**
+
+Mỗi ứng dụng cần phải có cấu hình độc lập, ví dụ:
+
+* **Ứng dụng 1** sẽ chạy trên cổng `3000`.
+* **Ứng dụng 2** sẽ chạy trên cổng `4000`.
+
+### 2. **Sử dụng các cổng khác nhau cho mỗi ứng dụng**
+
+Khi bạn chạy nhiều ứng dụng, mỗi ứng dụng cần phải lắng nghe trên một cổng khác nhau. Bạn có thể chỉnh sửa tệp cấu hình hoặc cấu hình thông qua dòng lệnh khi chạy ứng dụng.
+
+Ví dụ:
+
+* Ứng dụng 1:
+
+  ```bash
+  npm run dev -- --port 3000
+  ```
+
+* Ứng dụng 2:
+
+  ```bash
+  npm run dev -- --port 4000
+  ```
+
+### 3. **Cấu hình Nginx (Reverse Proxy) cho mỗi ứng dụng**
+
+Nếu bạn muốn truy cập các ứng dụng qua tên miền hoặc IP của VPS, bạn cần sử dụng **Nginx** như là **reverse proxy** cho mỗi ứng dụng.
+
+#### 3.1 **Cấu hình Nginx cho Ứng dụng 1**
+
+1. Tạo file cấu hình cho ứng dụng 1:
+
+   ```bash
+   sudo nano /etc/nginx/sites-available/app1
+   ```
+
+2. Cấu hình reverse proxy:
+
+   ```nginx
+   server {
+       listen 80;
+       server_name app1.yourdomain.com;  # Tên miền hoặc IP VPS của bạn
+
+       location / {
+           proxy_pass http://localhost:3000;  # Cổng của ứng dụng 1
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+       }
+   }
+   ```
+
+3. Tạo symbolic link:
+
+   ```bash
+   sudo ln -s /etc/nginx/sites-available/app1 /etc/nginx/sites-enabled/
+   ```
+
+#### 3.2 **Cấu hình Nginx cho Ứng dụng 2**
+
+1. Tạo file cấu hình cho ứng dụng 2:
+
+   ```bash
+   sudo nano /etc/nginx/sites-available/app2
+   ```
+
+2. Cấu hình reverse proxy:
+
+   ```nginx
+   server {
+       listen 80;
+       server_name app2.yourdomain.com;  # Tên miền hoặc IP VPS của bạn
+
+       location / {
+           proxy_pass http://localhost:4000;  # Cổng của ứng dụng 2
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+       }
+   }
+   ```
+
+3. Tạo symbolic link:
+
+   ```bash
+   sudo ln -s /etc/nginx/sites-available/app2 /etc/nginx/sites-enabled/
+   ```
+
+### 4. **Khởi động lại Nginx**
+
+Sau khi cấu hình xong, kiểm tra cấu hình và khởi động lại Nginx để áp dụng thay đổi:
+
+```bash
+sudo nginx -t
+sudo systemctl restart nginx
+```
+
+### 5. **Truy cập ứng dụng**
+
+Bây giờ, bạn có thể truy cập ứng dụng của mình thông qua các tên miền hoặc địa chỉ IP khác nhau:
+
+* **Ứng dụng 1**: `http://app1.yourdomain.com`
+* **Ứng dụng 2**: `http://app2.yourdomain.com`
+
+Hoặc nếu bạn đang sử dụng **IP VPS** thay vì tên miền:
+
+* **Ứng dụng 1**: `http://your-vps-ip:3000`
+* **Ứng dụng 2**: `http://your-vps-ip:4000`
+
+### 6. **Quản lý ứng dụng với PM2 (tùy chọn)**
+
+Để đảm bảo rằng cả hai ứng dụng đều chạy liên tục và tự động khởi động lại sau khi VPS khởi động lại, bạn có thể sử dụng **PM2**:
+
+1. **Khởi chạy ứng dụng với PM2**:
+
+   ```bash
+   pm2 start npm --name "app1" -- run dev -- --port 3000
+   pm2 start npm --name "app2" -- run dev -- --port 4000
+   ```
+
+2. **Lưu cấu hình PM2**:
+
+   ```bash
+   pm2 startup
+   pm2 save
+   ```
+
+### 7. **Cấu hình firewall**
+
+Nếu bạn muốn chỉ cho phép truy cập vào các cổng HTTP (80), hãy đảm bảo firewall của bạn cho phép cổng này. Ví dụ, nếu bạn đang sử dụng **UFW** (Uncomplicated Firewall), bạn có thể mở cổng HTTP:
+
+```bash
+sudo ufw allow 80
+sudo ufw reload
+```
+
+---
+
+### Tổng kết
+
+Với các bước trên, bạn có thể dễ dàng triển khai **2 ứng dụng khác nhau** trên **1 VPS** và sử dụng **Nginx** để phục vụ các ứng dụng qua các cổng/tên miền khác nhau. Nếu bạn có thêm bất kỳ câu hỏi nào hoặc gặp vấn đề trong quá trình triển khai, đừng ngần ngại yêu cầu thêm hỗ trợ!
