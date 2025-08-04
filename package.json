@@ -2,7 +2,7 @@
   "name": "12tin",
   "private": true,
   "version": "0.0.0",
-  "homepage": "https://ledong1080.github.io/12tin",
+  "homepage": "https://github.com/ledong1080.io/12tin",
   "type": "module",
   "scripts": {
   "dev": "vite",
